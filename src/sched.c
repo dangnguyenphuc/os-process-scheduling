@@ -29,16 +29,15 @@ struct pcb_t * get_proc(void) {
 	pthread_mutex_lock(&queue_lock); // lock ==NULL
 	
 	if(ready_queue.size == 0){ //then we move all processes in running q into ready q.
-		for(int i = 0; i < MAX_QUEUE_SIZE ;++i){
-			ready_queue.proc[i] = run_queue.proc[i];
-			run_queue.proc[i]=NULL;
+		for(int i = 0; i < run_queue.size ;++i){
+			enqueue(&ready_queue, dequeue(&run_queue));
 		}
-		ready_queue.size = run_queue.size;
-		run_queue.size = 0;
 	}
-	//then just dequeue ready queue whether ready q's size = 0 or not.
-	proc = dequeue(&ready_queue);
-
+	//then just dequeue ready queue whether ready q's size = 0.
+	if(ready_queue.size==0){
+		proc = dequeue(&ready_queue);
+	}
+	
 	//unlock
 	pthread_mutex_unlock(&queue_lock);
 	return proc;

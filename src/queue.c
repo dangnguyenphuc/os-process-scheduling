@@ -24,8 +24,8 @@ struct pcb_t * dequeue(struct queue_t * q) {
 	if(q->size == 0) return NULL;
 	
 	int search = 0;
-
-	for(int i = 1; i < q->size; ++i){
+	int i;
+	for(i = 1; i < q->size; ++i){
 		if(q->proc[i]->priority < q->proc[search]->priority){
 			search = i;
 		}

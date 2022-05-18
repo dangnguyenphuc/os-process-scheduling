@@ -52,12 +52,13 @@ static struct page_table_t * get_page_table(
 
 	int i;
 	//TODO: Sequential search
-	for (i = 0; i < seg_table->size; i++) {
+	for (i = 0; i < seg_table->size; ++i) {
 		// Enter your code here
 		if( index == seg_table->table[i].v_index){
 			return seg_table->table[i].pages;
 		}
 	}
+	//else return NULL;
 	return NULL;
 
 }
@@ -78,8 +79,7 @@ static int translate(
 	addr_t second_lv = get_second_lv(virtual_addr);
 	
 	/* Search in the first level */
-	struct page_table_t * page_table = NULL;
-	page_table = get_page_table(first_lv, proc->seg_table);
+	struct page_table_t * page_table = get_page_table(first_lv, proc->seg_table);
 	if (page_table == NULL) {
 		return 0;
 	}
