@@ -28,13 +28,13 @@ struct pcb_t * get_proc(void) {
 	//lock 'cause ready queue's role likes a global variable.
 	pthread_mutex_lock(&queue_lock); // lock ==NULL
 	
-	if(ready_queue.size == 0){ //then we move all processes in running q into ready q.
-		for(int i = 0; i < run_queue.size ;++i){
-			enqueue(&ready_queue, dequeue(&run_queue));
+	if(empty(&ready_queue)){ //then we move all processes in running q into ready q.
+		while(!empty(&run_queue)){
+			enqueue(&ready_queue,dequeue(&run_queue));
 		}
 	}
 	//then just dequeue ready queue whether ready q's size = 0.
-	if(ready_queue.size==0){
+	if(!empty(&ready_queue)){
 		proc = dequeue(&ready_queue);
 	}
 	
