@@ -1,4 +1,3 @@
-
 #include "queue.h"
 #include "sched.h"
 #include <pthread.h>
@@ -19,27 +18,23 @@ void init_scheduler(void) {
 
 struct pcb_t * get_proc(void) {
 	struct pcb_t * proc = NULL;
-	/*TODO: get a process from [ready_queue]. If ready queue
-	 * is empty, push all processes in [run_queue] back to
-	 * [ready_queue] and return the highest priority one.
-	 * Remember to use lock to protect the queue.
-	 * */
 
-	//lock 'cause ready queue's role likes a global variable.
-	pthread_mutex_lock(&queue_lock); // lock ==NULL
-	
-	if(empty(&ready_queue)){ //then we move all processes in running q into ready q.
-		while(!empty(&run_queue)){
-			enqueue(&ready_queue,dequeue(&run_queue));
+	pthread_mutex_lock(&queue_lock);
+
+	if (empty(&ready_queue)) { // Neu ready queue rong
+		struct pcb_t * back = NULL;
+		while (!empty(&run_queue)) {
+			back = dequeue(&run_queue);
+			enqueue(&ready_queue, back);
 		}
 	}
-	//then just dequeue ready queue whether ready q's size = 0.
-	if(!empty(&ready_queue)){
+	
+	if (!empty(&ready_queue)) {
 		proc = dequeue(&ready_queue);
 	}
-	
-	//unlock
+
 	pthread_mutex_unlock(&queue_lock);
+
 	return proc;
 }
 
@@ -54,5 +49,3 @@ void add_proc(struct pcb_t * proc) {
 	enqueue(&ready_queue, proc);
 	pthread_mutex_unlock(&queue_lock);	
 }
-
-

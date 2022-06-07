@@ -1,4 +1,3 @@
-
 #include "cpu.h"
 #include "mem.h"
 
@@ -73,7 +72,6 @@ int run(struct pcb_t * proc) {
 		stat = 1;
 	}
 	return stat;
-
 }
 
 
