@@ -1,4 +1,3 @@
-
 #include "timer.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -19,6 +18,7 @@ static int timer_stop = 0;
 
 
 static void * timer_routine(void * args) {
+	// Lặp đến khi chưa có tín hiệu stop
 	while (!timer_stop) {
 		printf("Time slot %3lu\n", current_time());
 		int fsh = 0;
@@ -76,12 +76,16 @@ void next_slot(struct timer_id_t * timer_id) {
 	pthread_mutex_unlock(&timer_id->timer_lock);
 }
 
+// Trả về thời gian hiện tại
 uint64_t current_time() {
 	return _time;
 }
 
+// Bắt đầu xử lý time
 void start_timer() {
+	// Bật tín hiệu start timer
 	timer_started = 1;
+	// Tạo thread gọi time_routine để tính time
 	pthread_create(&_timer, NULL, timer_routine, NULL);
 }
 
@@ -118,6 +122,7 @@ struct timer_id_t * attach_event() {
 }
 
 void stop_timer() {
+	// Bật tín hiệu stop timer
 	timer_stop = 1;
 	pthread_join(_timer, NULL);
 	while (dev_list != NULL) {

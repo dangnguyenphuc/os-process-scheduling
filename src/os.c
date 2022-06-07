@@ -1,4 +1,3 @@
-
 #include "cpu.h"
 #include "timer.h"
 #include "sched.h"
@@ -169,8 +168,4 @@ int main(int argc, char * argv[]) {
 	dump();
 
 	return 0;
-
 }
-
-
-
