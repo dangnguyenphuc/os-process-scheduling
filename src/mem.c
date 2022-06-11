@@ -37,22 +37,30 @@ static addr_t get_second_lv(addr_t addr) {
 	return (addr >> OFFSET_LEN) - (get_first_lv(addr) << PAGE_LEN);
 }
 
-/* Search for page table table from the a segment table */
+//TODO: Search for page table table from the a segment table
 static struct page_table_t * get_page_table(
 		addr_t index, 	// Segment level index
 		struct seg_table_t * seg_table) { // first level table
+	
 	/*
-     	* TODO: Given the Segment index [index], you must go through each
-     	* row of the segment table [seg_table] and check if the v_index
-     	* field of the row is equal to the index
-     	*
-     	* */
+	 * TODO: Given the Segment index [index], you must go through each
+	 * row of the segment table [seg_table] and check if the v_index
+	 * field of the row is equal to the index
+	 *
+	 * */
+
 	int i;
-	for (i = 0; i < seg_table->size; i++) {
+	//TODO: Sequential search
+	for (i = 0; i < seg_table->size; ++i) {
 		// Enter your code here
-		if (index==seg_table->table[i].v_index) return seg_table->table[i].pages;
+		// if index found -> get its pages table
+		if( index == seg_table->table[i].v_index){
+			return seg_table->table[i].pages;
+		}
 	}
+	//else return NULL;
 	return NULL;
+
 }
 
 /* Translate virtual address to physical address. If [virtual_addr] is valid,
@@ -64,32 +72,44 @@ static int translate(
 		struct pcb_t * proc) {  // Process uses given virtual address
 
 	/* Offset of the virtual address */
-	addr_t offset = get_offset(virtual_addr);
+	addr_t offset = get_offset(virtual_addr);	//offset
 	/* The first layer index */
-	addr_t first_lv = get_first_lv(virtual_addr);
+	addr_t first_lv = get_first_lv(virtual_addr); //segment index
 	/* The second layer index */
-	addr_t second_lv = get_second_lv(virtual_addr);
+	addr_t second_lv = get_second_lv(virtual_addr); //page index
 	
 	/* Search in the first level */
-	struct page_table_t * page_table = NULL;
-	page_table = get_page_table(first_lv, proc->seg_table);
+	struct page_table_t * page_table = get_page_table(first_lv, proc->seg_table);
 	if (page_table == NULL) {
 		return 0;
 	}
-
+	//else 
 	int i;
-	for (i = 0; i < page_table->size; i++) {
+	for (i = 0; i < page_table->size; ++i) {
 		if (page_table->table[i].v_index == second_lv) {
 			/* TODO: Concatenate the offset of the virtual addess
-            	* to [p_index] field of page_table->table[i] to
-            	* produce the correct physical address and save it to
-            	* [*physical_addr]  */
-			*physical_addr=((page_table->table[i].p_index)<<OFFSET_LEN)|offset;
+			 * to [p_index] field of page_table->table[i] to 
+			 * produce the correct physical address and save it to
+			 * [*physical_addr]  */
+			addr_t p_index = page_table->table[i].p_index;
+			*physical_addr = (p_index << OFFSET_LEN) | (offset);		
+			// physical add = 10 bits paging then 10 bits offset
+			// so it equals p_index shifts left 10 bits and added by offset
 			return 1;
 		}
 	}
+	// if there have no v_index -> 0;
 	return 0;	
 }
+
+/* First we must check if the amount of free memory in
+	 * virtual address space and physical address space is
+	 * large enough to represent the amount of required 
+	 * memory. If so, set 1 to [mem_avail].
+	 * Hint: check [proc] bit in each page of _mem_stat
+	 * to know whether this page has been used by a process.
+	 * For virtual memory space, check bp (break pointer).
+	 * */
 
 addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 	pthread_mutex_lock(&mem_lock);
@@ -105,8 +125,9 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
     	* For virtual memory space, check bp (break pointer).
     	* */
 
-	//--------------- KIEM TRA PHYSICAL MEMORY----------------
-	int k, spaces=0;   // If proc = 0, the page is free and the OS could allocated it to any process
+	//--------------- CHECK PHYSICAL MEMORY----------------
+	int i;
+	int spaces=0;   // If proc = 0, the page is free and the OS could allocated it to any process
 	for (int k=0;k<NUM_PAGES;k++){
 		if (spaces==num_pages){
 			mem_avail=1;
@@ -116,8 +137,10 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 			if(_mem_stat[k].proc==0) spaces++;
 		}
 	}
-	//--------------- KIEM TRA VIRTUAL MEMORY----------------
-	if (proc->bp+num_pages*PAGE_SIZE>(1<<ADDRESS_SIZE)) mem_avail=0;
+	//--------------- CHECK VIRTUAL MEMORY----------------
+	if (proc->bp+num_pages*PAGE_SIZE>(1<<ADDRESS_SIZE)) {
+		mem_avail=0;
+	}
 	//-------------------------------------------------------
 
 	if (mem_avail) {
@@ -131,32 +154,37 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
          	*    to ensure accesses to allocated memory slot is
         	*    valid. */
 		int pre_frame=0;
-		for (k=0;k<NUM_PAGES && spaces>0;k++){
-			if (_mem_stat[k].proc==0){
-				_mem_stat[k].proc=proc->pid;
-				_mem_stat[k].index=num_pages-spaces;
-				addr_t addr_vir=ret_mem + _mem_stat[k].index*PAGE_SIZE;
+		int segSize;
+		int pageSize;
+		addr_t addr_vir;
+		addr_t segIndex;
+		addr_t pageIndex;
+		for (i=0;i<NUM_PAGES && spaces>0; i++){
+			if (_mem_stat[i].proc==0){
+				_mem_stat[i].proc=proc->pid;
+				_mem_stat[i].index=num_pages-spaces;
+				addr_vir=ret_mem + _mem_stat[i].index*PAGE_SIZE;
 				
 
-				addr_t f_lv=get_first_lv(addr_vir);
-				addr_t s_lv=get_second_lv(addr_vir);
-				struct page_table_t* page_table=get_page_table(f_lv, proc->seg_table);
+				segIndex=get_first_lv(addr_vir);
+				pageIndex=get_second_lv(addr_vir);
+				struct page_table_t* page_table=get_page_table(segIndex, proc->seg_table);
 
 				if (page_table==NULL){
-					int i=proc->seg_table->size;
-					proc->seg_table->table[i].v_index=f_lv;
-					proc->seg_table->table[i].pages=(struct page_table_t*) malloc(sizeof(struct page_table_t));
-					page_table=proc->seg_table->table[i].pages;
+					segSize=proc->seg_table->size;
+					proc->seg_table->table[segSize].v_index=segIndex;
+					proc->seg_table->table[segSize].pages=(struct page_table_t*) malloc(sizeof(struct page_table_t));
+					page_table=proc->seg_table->table[segSize].pages;
 					page_table->size=0;
 					proc->seg_table->size++;
 				}	
-				int j=page_table->size;
-				page_table->table[j].v_index=s_lv;
-				page_table->table[j].p_index=k;
+				pageSize = page_table->size;
+				page_table->table[pageSize].v_index=pageIndex;
+				page_table->table[pageSize].p_index=i;
 				page_table->size++;
 
-				if (spaces<num_pages) _mem_stat[pre_frame].next=k;
-				pre_frame=k;
+				if (spaces<num_pages) _mem_stat[pre_frame].next=i;
+				pre_frame = i ;
 				spaces-=1;
 			}
 		}
@@ -178,31 +206,37 @@ int free_mem(addr_t address, struct pcb_t * proc) {
     	int i;
     	int check=0;
     	pthread_mutex_lock(&mem_lock);
-	addr_t addr_physical;
-	if (translate(address, &addr_physical, proc)){
-		// Tim vi tri can xoa 
+		addr_t addr_physical;
+		if (translate(address, &addr_physical, proc)){
+		// find deleting position
 		for (i=0;i<NUM_PAGES;i++){
 			if (addr_physical==(i<<OFFSET_LEN)) {
 				check=1;
 				break;
 			}
 		}
-		int next=-3;
-		if (check) next=i;
+		int next=-1;
+
+		if (check) {
+			next=i;
+		}
+
 		addr_t temp=address;
+		addr_t segIndex;
+		addr_t pageIndex;
+
 		while (next>-1){
 			_mem_stat[next].proc=0;
 			next=_mem_stat[next].next;
 			//Thuc hien xoa 
-			addr_t f_lv=get_first_lv(temp);
-			addr_t s_lv=get_second_lv(temp);
+			segIndex  = get_first_lv(temp);
+			pageIndex = get_second_lv(temp);
 			for (int j=0;j<proc->seg_table->size;j++){
-				if (proc->seg_table->table[j].v_index==f_lv){
+				if (proc->seg_table->table[j].v_index == segIndex){
 					int l;
 					for (int k=0;k<proc->seg_table->table[j].pages->size;k++){
-						if (s_lv==proc->seg_table->table[j].pages->table[k].v_index){
+						if (pageIndex == proc->seg_table->table[j].pages->table[k].v_index){
 						//Xoa phan tu bang cach don cac phan tu tu vi tri xoa roi xoa phan tu cuoi cung cua page_table
-
 							for (l=k;l<proc->seg_table->table[j].pages->size-1;l++){
 								proc->seg_table->table[j].pages->table[l].p_index=proc->seg_table->table[j].pages->table[l+1].p_index;
 								proc->seg_table->table[j].pages->table[l].v_index=proc->seg_table->table[j].pages->table[l+1].v_index;
@@ -280,3 +314,13 @@ void dump(void) {
 		}
 	}
 }
+
+/* Note that:
+Number of entries in the page table of a segment = Number of pages that segment is divided.
+
+A segment table exists that keeps track of the frames storing the page tables of segments.
+
+Number of entries in the segment table of a process = Number of segments that process is divided.
+
+The base address of the segment table is stored in the segment table base register.
+*/

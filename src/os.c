@@ -37,7 +37,7 @@ static void * cpu_routine(void * args) {
 		 	* ready queue */
 			proc = get_proc();
 		}else if (proc->pc == proc->code->size) {
-			/* The porcess has finish it job */
+			/* The process has finish it job */
 			printf("\tCPU %d: Processed %2d has finished\n",
 				id ,proc->pid);
 			free(proc);
