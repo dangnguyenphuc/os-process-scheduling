@@ -156,21 +156,22 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 		int pre_frame=0;
 		int segSize;
 		int pageSize;
+
 		addr_t addr_vir;
 		addr_t segIndex;
 		addr_t pageIndex;
+
 		for (i=0;i<NUM_PAGES && spaces>0; i++){
 			if (_mem_stat[i].proc==0){
 				_mem_stat[i].proc=proc->pid;
 				_mem_stat[i].index=num_pages-spaces;
 				addr_vir=ret_mem + _mem_stat[i].index*PAGE_SIZE;
 				
-
 				segIndex=get_first_lv(addr_vir);
 				pageIndex=get_second_lv(addr_vir);
 				struct page_table_t* page_table=get_page_table(segIndex, proc->seg_table);
 
-				if (page_table==NULL){
+				if (page_table==NULL){	// empty 
 					segSize=proc->seg_table->size;
 					proc->seg_table->table[segSize].v_index=segIndex;
 					proc->seg_table->table[segSize].pages=(struct page_table_t*) malloc(sizeof(struct page_table_t));
@@ -183,7 +184,9 @@ addr_t alloc_mem(uint32_t size, struct pcb_t * proc) {
 				page_table->table[pageSize].p_index=i;
 				page_table->size++;
 
-				if (spaces<num_pages) _mem_stat[pre_frame].next=i;
+				if (spaces<num_pages){
+					_mem_stat[pre_frame].next=i;
+				} 
 				pre_frame = i ;
 				spaces-=1;
 			}
@@ -203,11 +206,11 @@ int free_mem(addr_t address, struct pcb_t * proc) {
     	*      the process [proc].
     	*    - Remember to use lock to protect the memory from other
     	*      processes.  */
-    	int i;
-    	int check=0;
-    	pthread_mutex_lock(&mem_lock);
-		addr_t addr_physical;
-		if (translate(address, &addr_physical, proc)){
+	int i;
+	int check=0;
+	pthread_mutex_lock(&mem_lock);
+	addr_t addr_physical;
+	if (translate(address, &addr_physical, proc)){
 		// find deleting position
 		for (i=0;i<NUM_PAGES;i++){
 			if (addr_physical==(i<<OFFSET_LEN)) {
@@ -224,37 +227,36 @@ int free_mem(addr_t address, struct pcb_t * proc) {
 		addr_t temp=address;
 		addr_t segIndex;
 		addr_t pageIndex;
-
+		int j,l,k;
 		while (next>-1){
 			_mem_stat[next].proc=0;
 			next=_mem_stat[next].next;
-			//Thuc hien xoa 
+
 			segIndex  = get_first_lv(temp);
 			pageIndex = get_second_lv(temp);
-			for (int j=0;j<proc->seg_table->size;j++){
+
+			for (j=0;j<proc->seg_table->size;j++){
 				if (proc->seg_table->table[j].v_index == segIndex){
-					int l;
-					for (int k=0;k<proc->seg_table->table[j].pages->size;k++){
+					for (k = 0; k<proc->seg_table->table[j].pages->size; ++k){
 						if (pageIndex == proc->seg_table->table[j].pages->table[k].v_index){
-						//Xoa phan tu bang cach don cac phan tu tu vi tri xoa roi xoa phan tu cuoi cung cua page_table
-							for (l=k;l<proc->seg_table->table[j].pages->size-1;l++){
+							for (l = k; l<proc->seg_table->table[j].pages->size-1; ++l){
 								proc->seg_table->table[j].pages->table[l].p_index=proc->seg_table->table[j].pages->table[l+1].p_index;
 								proc->seg_table->table[j].pages->table[l].v_index=proc->seg_table->table[j].pages->table[l+1].v_index;
 							}
+							// size = size - 1
 							proc->seg_table->table[j].pages->table[l].v_index=0;
 							proc->seg_table->table[j].pages->table[l].p_index=0;
 							proc->seg_table->table[j].pages->size-=1;
 							break;
 						}
 					}
-					//Kiem tra xem page_table trong hay khong, neu trong thi xoa di
 					if (proc->seg_table->table[j].pages->size==0){
 						free(proc->seg_table->table[j].pages);
-						//Don bang seg_table lai roi xoa
-						for (l=j;l<proc->seg_table->size-1;l++){
+						for ( l = j ; l<proc->seg_table->size-1; ++l){
 							proc->seg_table->table[l].v_index=proc->seg_table->table[l+1].v_index;
 							proc->seg_table->table[l].pages=proc->seg_table->table[l+1].pages;
 						}
+						// size = size - 1, delete 
 						proc->seg_table->table[l].pages=NULL;
 						proc->seg_table->table[l].v_index=0;
 						proc->seg_table->size-=1;
